@@ -1,0 +1,115 @@
+from player import MusicPlayer
+from download import download_song
+import os
+
+class MusicManager():
+    def __init__(self, queue:list[str]=[]):
+        self.paused = True
+        self.player = MusicPlayer(on_song_end_hook=self.on_song_end)
+        self.queue: list[str] = queue
+        self._downloaded_songs = self._parse_downloaded_file_index()
+        self.currently_playing: str | None = None
+
+    def _parse_downloaded_file_index(self):
+        """Reads cache/downloaded.txt, and returns each line stripped of newline.
+
+        Returns:
+            list[str]: List of each line in cache/downloaded.txt
+        """
+        with open('cache/downloaded.txt') as f:
+            lines = f.readlines()
+            return [line.rstrip('\n') for line in lines]
+            
+    def pause(self):
+        """Attempts to pause currently playing song, and sends notification on error.
+        """
+        try:
+            self.player.pause()
+            self.paused = True
+        except:
+            os.system('notify-send \'Error while pausing\'')
+            
+    def unpause(self):
+        """Attempts to unpause the currently playing song, and sends notification on error.
+        """
+        try:
+            self.player.play()
+            self.paused = False
+        except:
+            os.system('notify-send \'Error while unpausing\'')
+
+    def force_play_song(self, track_id: str, clear_queue: bool = False):
+        """Loads song immediately, but does not play it (call MusicManager.unpause). Will clear the queue if clear_queue is true.
+
+        Args:
+            track_id (str): The spotify track id of the song to play.
+            clear_queue (bool, optional): Set to true to clear the queue. Defaults to False.
+        """
+        self.player.stop()
+        if track_id not in self._downloaded_songs or not os.path.exists(f'cache/downloads/{track_id}.mp3'):
+            self.download_song(track_id)
+        self.load_song(track_id)
+        self.currently_playing = track_id
+        if clear_queue:
+            self.reset_queue()
+        
+    def reset_queue(self):
+        """Sets the queue to an empty list.
+        """
+        self.queue = []
+        
+    def add_song_to_queue(self, track_id: str):
+        """Adds a track to the queue.
+
+        Args:
+            track_id (str): Spotify track ID to add to queue.
+        """
+        self.queue.append(track_id)
+        
+    def download_song(self, track_id: str, force: bool = False):
+        """Calls SpotDL to download a song if not already downloaded
+
+        Args:
+            track_id (str): Spotify track ID to download.
+            force (bool): Set to true to download even if already downloaded.
+        """
+        if track_id not in self._downloaded_songs or force:
+            download_song(f"https://open.spotify.com/track/{track_id}")
+            with open('cache/downloaded.txt', "a") as f:
+                f.write(f'\n{track_id}')
+                self._downloaded_songs.append(track_id)
+                
+    def load_song(self, track_id: str):
+        """Loads a track in python with full path.
+
+        Args:
+            track_id (str): Spotify track ID to load.
+        """
+        self.player.load_song(f"cache/downloads/{track_id}.mp3")
+        self.currently_playing = track_id
+        self.paused = True
+        
+    def on_song_end(self):
+        """Runs when the currently playing song ends (don't call)
+        """
+        self.currently_playing = None
+        self.paused = True
+        if len(self.queue) > 0:
+            self.currently_playing = self.queue[0]
+            self.force_play_song(self.queue[0])         
+    
+    def play_queue(self):
+        """Plays the first song in the queue.
+        """
+        self.force_play_song(self.queue[0])
+        self.queue.pop(0)
+        
+    # TODO Skip song        
+
+    def quit(self):
+        """Stops playback and quits pygame.
+        """
+        self.paused = True
+        self.currently_playing = None
+        self.player.stop()
+        self.player.quit()

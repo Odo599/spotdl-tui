@@ -5,7 +5,7 @@ import time
 class MusicPlayer():
     """This is a MusicPlayer class, which can load and play music files using pygame.mixer.
     """
-    def __init__(self, queue: list[str] = []):
+    def __init__(self, queue: list[str] = [], on_song_end_hook = None):
         """Initialises the MusicPlayer class.
 
         Args:
@@ -18,10 +18,12 @@ class MusicPlayer():
         self._paused = False
         self._watch_song_end_thread = threading.Thread(target=self._watch_song_end)
         self._watch_song_end_started = False
+        self.on_song_end_hook = on_song_end_hook
+        self._quitting = False
         
     def _watch_song_end(self):
         was_playing = False
-        while True:
+        while not self._quitting:
             is_playing = pygame.mixer.music.get_busy()
             if was_playing and not is_playing and not self._paused:
                 self.on_song_finish()
@@ -53,9 +55,15 @@ class MusicPlayer():
         self._paused = True
 
     def on_song_finish(self):
-        self.queue.pop(0)
-        self.load_song(self.queue[0])
+        if self.on_song_end_hook is not None:
+            self.on_song_end_hook()
 
     def stop(self):
         pygame.mixer.music.stop()
         self._paused = False
+
+    def quit(self):
+        self._quitting = True
+        pygame.mixer.quit()
+        
+    

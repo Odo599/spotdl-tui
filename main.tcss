@@ -1,0 +1,20 @@
+PlaylistTable {
+    height: 70vh;
+}
+
+PlaylistsView {
+    height: 84vh
+}
+
+BottomBar {
+    margin-top: 1;
+    height: 15vh;
+    text-align: center;
+    width: 100vw;
+    align-horizontal: center;
+}
+
+BottomBar > HorizontalGroup {
+    align-horizontal: center;
+    width: auto;
+}
