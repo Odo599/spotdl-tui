@@ -84,6 +84,36 @@ class SpotifyClient:
                 break
         return tracks
 
+    def get_playlist_metadata(self, playlist_url:str):
+        """Gets playlist metadata.
+
+        Args:
+            playlist_url (str): The URL of the playlist to get.
+
+        Raises:
+            Exception: If Spotify client not authenticated.
+            ValueError: If Spotify playlist URL is invalid.
+            ValueError: Failed to extract metadata.
+
+        Returns:
+            _type_: _description_
+        """
+        if not self.sp:
+            raise Exception("Spotify client not authenticated. Call authenticate() first.")
+
+        playlist_id = self._extract_playlist_id(playlist_url)
+        if not playlist_id:
+            raise ValueError("Invalid Spotify URL.")
+        
+        results = self.sp.playlist(playlist_id)
+        
+        if type(results) == dict:
+            return {'name':results['name']}
+        else:
+            raise ValueError("Could not get metadata.")
+            
+        
+
     def _extract_playlist_id(self, url):
         """Extract playlist ID from a full Spotify playlist URL."""
         match = re.search(r'playlist/([a-zA-Z0-9]+)', url)
