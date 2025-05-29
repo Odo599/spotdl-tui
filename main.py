@@ -1,13 +1,15 @@
-from textual.app import App, ComposeResult, RenderResult
-from textual.widgets import Footer, Header, DataTable, Log, Label, Button, Static, Collapsible
+from textual.app import App, ComposeResult
+from textual.widgets import DataTable, Label, Button, Static, Collapsible
 from textual import on
-from textual.widget import Widget
-from textual.containers import HorizontalGroup
+from textual.containers import HorizontalGroup, VerticalGroup
 from textual.coordinate import Coordinate
+from textual.logging import TextualHandler
+
 import threading
+import logging
+import random
 
 from spotify import SpotifyClient
-
 from music_manager import MusicManager
 
 
@@ -16,89 +18,151 @@ music_manager = MusicManager()
 spotify = SpotifyClient()
 spotify.authenticate()
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-class PlaylistTable(Static):
+handler = TextualHandler()
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(levelname)s [%(filename)s:%(lineno)d]: %(message)s")
+handler.setFormatter(formatter)
+
+logger.addHandler(handler)
+
+class PlaylistView(Static):
     def __init__(self, playlist_id:str|None = None, *args, **kwargs):
         self.playlist_id = playlist_id
         super().__init__(*args, **kwargs)
         
     def compose(self):
         if self.playlist_id is not None:
+            # Setup Data
             table = [
                 ("x", "Track Name", "Artist", "id"),
             ]
             tracks = spotify.get_playlist_tracks(f'https://open.spotify.com/playlist/{self.playlist_id}')
+            self.playlist_tracks = tracks
             tracks = [['▶'] + sublist for sublist in tracks]
             
-            self.table = DataTable()
+            name = spotify.get_playlist_metadata(f'https://open.spotify.com/playlist/{self.playlist_id}')['name']
+            
+            self.playlist_name = name
+            
+            # Setup Elements
+            self.table = DataTable(id='playlist')
+            self.title = Label(name, id='playlist-title')
+            self.shuffle = Button("Shuffle", id='playlist-shuffle')
+            self.play_all = Button("Play", id='playlist-play')
+            
             
             self.table.add_columns(*table[0])
             self.table.add_rows(tracks)
-            yield self.table
+            
+            play_group = HorizontalGroup(self.shuffle, self.play_all, id='playlist-play-group')
+            
+            topbar = HorizontalGroup(self.title, play_group, id="playlist-topbar")
+            
+            v_group = VerticalGroup(topbar, self.table)
+            
+            yield v_group
         else:
             yield Label("No Playlist")
     
+    # Run when playlist selected
     @on(DataTable.CellSelected)
     async def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
-        row, column = event.coordinate
-        if column == 0:            
-            def _task():
-                music_manager.force_play_song(self.table.get_cell_at(Coordinate(row, column + 3)), True)
-                
-            _task_thread = threading.Thread(target=_task)
-            _task_thread.start()
+        if event.control.id == 'playlist':
+            row, column = event.coordinate
+            if column == 0:            
+                def _task():
+                    music_manager.force_play_song(self.table.get_cell_at(Coordinate(row, column + 3)), True)
+                    
+                _task_thread = threading.Thread(target=_task)
+                _task_thread.daemon = True
+                _task_thread.start()
+    
+    @on(Button.Pressed)
+    def handle_playlist_selected(self, event: Button.Pressed) -> None:
+        if event.control.id == 'playlist-play':
+            logger.info(f"Play playlist: {self.playlist_id} ({self.playlist_name})")
+            track_ids = [track[-1] for track in self.playlist_tracks]
+            music_manager.reset_queue()
+            music_manager.add_songs_to_queue(track_ids)
+            music_manager.play_queue()
+        elif event.control.id == 'playlist-shuffle':
+            logger.info(f"Shuffle playlist: {self.playlist_id} ({self.playlist_name})")
+            track_ids = [track[-1] for track in self.playlist_tracks]
+            random.shuffle(track_ids)
+            logger.info(track_ids)
             
+            music_manager.reset_queue()
+            music_manager.add_songs_to_queue(track_ids)
+            music_manager.play_queue()
+            logger.info(music_manager.queue)
+                  
 class PlaylistsView(Static):   
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.playlist = PlaylistTable()  # Initialize with no playlist
+        self.playlist = PlaylistView()
 
     def compose(self) -> ComposeResult:
         data = spotify.get_user_playlists()
         data = [['x'] + sublist for sublist in data]
         
-        self.table = DataTable()
+        self.table = DataTable(id='playlists')
         self.table.add_columns(*("x", "Name", "ID"))
         self.table.add_rows(data)
         
         yield Collapsible(self.table, collapsed=False, title="Playlists")
         yield self.playlist
     
+    # Run when a cell is selected
     @on(DataTable.CellSelected)
     def handle_cell_selected(self, event: DataTable.CellSelected) -> None:
-        playlist_id = event.control.get_cell_at(Coordinate(event.coordinate[0], 2))
-
-        # Replace Playlist
-        self.playlist.remove()
-        self.playlist = PlaylistTable(playlist_id)
-        self.mount(self.playlist)
+        if event.control.id == 'playlists':
+            def _task():
+                playlist_id = event.control.get_cell_at(Coordinate(event.coordinate[0], 2))
+                logger.info(f"Selected: {event.control.get_cell_at(Coordinate(event.coordinate[0],1))} ({event.control.get_cell_at(Coordinate(event.coordinate[0],2))})")
+                # UI update in main thread
+                def update_ui():
+                    self.playlist.remove()
+                    self.playlist = PlaylistView(playlist_id)
+                    self.mount(self.playlist)
+                self.app.call_from_thread(update_ui)
+            threading.Thread(target=_task, daemon=True).start()
     
 class BottomBar(Static):
     def compose(self) -> ComposeResult:  
+        # TODO Currently Playing
+        # TODO View song progress
         yield Label("Currently Playing", id='current')
         yield HorizontalGroup(
             Button("Play/Pause", id='play'),
             Button("Next Song", id='next')
         )
-        
+    
+    # Run when button pressed
     def on_button_pressed(self, event: Button.Pressed):
         if event.button.id == 'play':
-            print(music_manager.currently_playing)
+            logger.info(f"Currently Playing: {music_manager.currently_playing}")
             if music_manager.currently_playing is not None:
                 if music_manager.paused:
                     music_manager.unpause()
                 else:
                     music_manager.pause()
-
-
+                    
+        elif event.button.id == 'next':
+            music_manager.skip_forward()
+        
 class Main(App):
     CSS_PATH = 'main.tcss'
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield PlaylistsView()
         yield BottomBar()
+        # TODO Some way to view the queue
         
-        # TODO UI
-
 if __name__ == "__main__":
     Main().run()
+    music_manager.quit()
+    # os.system('clear')
+    quit()

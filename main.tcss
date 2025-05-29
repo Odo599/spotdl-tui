@@ -1,5 +1,39 @@
-PlaylistTable {
-    height: 70vh;
+PlaylistView {
+    height: 1fr;
+    overflow: auto;
+    margin-top: 1;
+}
+
+#playlist-topbar {
+    height: 3;
+    margin-bottom: 1;
+    width: 100vw;
+    /* Add flex layout for left/right docking */
+    layout: horizontal;
+}
+
+#playlist-topbar > #playlist-title {
+    align-vertical: middle;
+    margin-left: 2;
+    padding: 0 2 0 2;
+    border: tall blue;
+    width: 1fr;
+}
+
+#playlist-topbar > #playlist-play-group {
+    width: auto;
+}
+
+#playlist-topbar > #playlist-play-group > #playlist-play {
+    height: 3;
+    margin-right: 2;
+    border: tall green;
+}
+
+#playlist-topbar > #playlist-play-group > #playlist-shuffle {
+    margin-right: 0;
+    margin-left: 2;
+    border: tall gray;
 }
 
 PlaylistsView {
@@ -8,7 +42,9 @@ PlaylistsView {
 
 BottomBar {
     margin-top: 1;
+    margin-bottom: 1;
     height: 15vh;
+    dock: bottom;
     text-align: center;
     width: 100vw;
     align-horizontal: center;

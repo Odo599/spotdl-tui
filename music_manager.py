@@ -1,6 +1,12 @@
 from player import MusicPlayer
 from download import download_song
 import os
+import logging
+import time
+import threading
+
+logger = logging.getLogger(__name__)
+
 
 class MusicManager():
     def __init__(self, queue:list[str]=[]):
@@ -9,6 +15,10 @@ class MusicManager():
         self.queue: list[str] = queue
         self._downloaded_songs = self._parse_downloaded_file_index()
         self.currently_playing: str | None = None
+        
+        self._download_manager_thread = threading.Thread(target=self.download_manager)
+        self._download_manager_thread.daemon = True
+        self._download_manager_thread.start()
 
     def _parse_downloaded_file_index(self):
         """Reads cache/downloaded.txt, and returns each line stripped of newline.
@@ -19,7 +29,15 @@ class MusicManager():
         with open('cache/downloaded.txt') as f:
             lines = f.readlines()
             return [line.rstrip('\n') for line in lines]
-            
+    
+    def download_manager(self):
+        while True:
+            time.sleep(1)
+            if len(self.queue) > 0:
+                if self.queue[0] not in self._downloaded_songs:
+                    logger.info(f"Download Next in Queue: {self.queue[0]}")
+                    self.download_song(self.queue[0])
+    
     def pause(self):
         """Attempts to pause currently playing song, and sends notification on error.
         """
@@ -65,7 +83,16 @@ class MusicManager():
             track_id (str): Spotify track ID to add to queue.
         """
         self.queue.append(track_id)
-        
+    
+    def add_songs_to_queue(self, track_ids: list[str]):
+        """Adds a list of tracks to the queue.
+
+        Args:
+            track_ids (list[str]): List of track ids to add to the queue.
+        """
+        for track in track_ids:
+            self.add_song_to_queue(track)
+    
     def download_song(self, track_id: str, force: bool = False):
         """Calls SpotDL to download a song if not already downloaded
 
@@ -74,6 +101,7 @@ class MusicManager():
             force (bool): Set to true to download even if already downloaded.
         """
         if track_id not in self._downloaded_songs or force:
+            logger.info(f"Downloading: {track_id}")
             download_song(f"https://open.spotify.com/track/{track_id}")
             with open('cache/downloaded.txt', "a") as f:
                 f.write(f'\n{track_id}')
@@ -96,15 +124,24 @@ class MusicManager():
         self.paused = True
         if len(self.queue) > 0:
             self.currently_playing = self.queue[0]
-            self.force_play_song(self.queue[0])         
+            self.force_play_song(self.queue[0])
+            self.queue.pop(0)         
     
     def play_queue(self):
         """Plays the first song in the queue.
         """
+        logger.info(f"Playing {self.queue[0]}")
         self.force_play_song(self.queue[0])
         self.queue.pop(0)
         
-    # TODO Skip song        
+    def skip_forward(self):
+        if len(self.queue) < 1:
+            return False
+        else:
+            logger.info(f"Skipping to {self.queue[0]} from {self.currently_playing}")
+            self.pause()
+            self.force_play_song(self.queue[0])
+            self.queue.pop(0)
 
     def quit(self):
         """Stops playback and quits pygame.
