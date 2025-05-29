@@ -10,10 +10,7 @@ import logging
 import random
 
 from spotify import SpotifyClient
-
 from music_manager import MusicManager
-
-
 
 
 music_manager = MusicManager()
@@ -95,10 +92,12 @@ class PlaylistView(Static):
             logger.info(f"Shuffle playlist: {self.playlist_id} ({self.playlist_name})")
             track_ids = [track[-1] for track in self.playlist_tracks]
             random.shuffle(track_ids)
+            logger.info(track_ids)
             
             music_manager.reset_queue()
             music_manager.add_songs_to_queue(track_ids)
             music_manager.play_queue()
+            logger.info(music_manager.queue)
                   
 class PlaylistsView(Static):   
     def __init__(self, *args, **kwargs):

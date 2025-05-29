@@ -124,7 +124,8 @@ class MusicManager():
         self.paused = True
         if len(self.queue) > 0:
             self.currently_playing = self.queue[0]
-            self.force_play_song(self.queue[0])         
+            self.force_play_song(self.queue[0])
+            self.queue.pop(0)         
     
     def play_queue(self):
         """Plays the first song in the queue.
