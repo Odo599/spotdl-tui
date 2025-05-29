@@ -129,6 +129,7 @@ class MusicManager():
     def play_queue(self):
         """Plays the first song in the queue.
         """
+        logger.info(f"Playing {self.queue[0]}")
         self.force_play_song(self.queue[0])
         self.queue.pop(0)
         

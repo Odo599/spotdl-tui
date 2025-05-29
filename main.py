@@ -7,7 +7,7 @@ from textual.logging import TextualHandler
 
 import threading
 import logging
-import os
+import random
 
 from spotify import SpotifyClient
 
@@ -53,12 +53,16 @@ class PlaylistView(Static):
             # Setup Elements
             self.table = DataTable(id='playlist')
             self.title = Label(name, id='playlist-title')
+            self.shuffle = Button("Shuffle", id='playlist-shuffle')
             self.play_all = Button("Play", id='playlist-play')
+            
             
             self.table.add_columns(*table[0])
             self.table.add_rows(tracks)
             
-            topbar = HorizontalGroup(self.title, self.play_all, id="playlist-topbar")
+            play_group = HorizontalGroup(self.shuffle, self.play_all, id='playlist-play-group')
+            
+            topbar = HorizontalGroup(self.title, play_group, id="playlist-topbar")
             
             v_group = VerticalGroup(topbar, self.table)
             
@@ -87,8 +91,15 @@ class PlaylistView(Static):
             music_manager.reset_queue()
             music_manager.add_songs_to_queue(track_ids)
             music_manager.play_queue()
+        elif event.control.id == 'playlist-shuffle':
+            logger.info(f"Shuffle playlist: {self.playlist_id} ({self.playlist_name})")
+            track_ids = [track[-1] for track in self.playlist_tracks]
+            random.shuffle(track_ids)
             
-            
+            music_manager.reset_queue()
+            music_manager.add_songs_to_queue(track_ids)
+            music_manager.play_queue()
+                  
 class PlaylistsView(Static):   
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,6 +133,8 @@ class PlaylistsView(Static):
     
 class BottomBar(Static):
     def compose(self) -> ComposeResult:  
+        # TODO Currently Playing
+        # TODO View song progress
         yield Label("Currently Playing", id='current')
         yield HorizontalGroup(
             Button("Play/Pause", id='play'),
@@ -147,9 +160,10 @@ class Main(App):
         """Create child widgets for the app."""
         yield PlaylistsView()
         yield BottomBar()
+        # TODO Some way to view the queue
         
 if __name__ == "__main__":
     Main().run()
     music_manager.quit()
-    os.system('clear')
+    # os.system('clear')
     quit()
