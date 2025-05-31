@@ -26,7 +26,8 @@ class SongMetadataFile():
             return {}
         
     def get_metadata(self, key) -> dict[str, str]|None:
-        all = self.read()
-        return all.get(key)
+        data = self.read()
+        return data.get(key)
+    
         
     
