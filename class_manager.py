@@ -8,8 +8,6 @@ from player import MusicPlayer as mp
 from song_metadata import SongMetadataFile as sm
 from spotify import SpotifyClient as sc
 
-
-
 class ClassManager():
     """A class to manage all the other classes used in spotdl-tui"""
     def __init__(

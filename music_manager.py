@@ -18,28 +18,28 @@ class MusicManager():
         self.queue: list[str] = queue
         self._downloaded_songs: list = self._parse_downloaded_file_index()
         self.currently_playing: str | None = None
-        
+
         self.on_song_change = None
         self.on_queue_change = None
-        
+
         self._download_manager_thread = threading.Thread(target=self.download_manager)
         self._download_manager_thread.daemon = True
         self._download_manager_thread.start()
 
     def set_on_song_change(self, on_song_change: Callable):
         self.on_song_change = on_song_change
-    
+
     def call_on_song_change(self):
         if self.on_song_change is not None:
             self.on_song_change()
-    
+
     def set_on_queue_change(self, on_queue_change):
         self.on_queue_change = on_queue_change
-        
+
     def call_on_queue_change(self):
         if self.on_queue_change is not None:
             self.on_queue_change()
-    
+
     def _parse_downloaded_file_index(self):
         """Reads cache/downloaded.txt, and returns each line stripped of newline.
 
@@ -49,7 +49,7 @@ class MusicManager():
         with open('cache/downloaded.txt') as f:
             lines = f.readlines()
             return [line.rstrip('\n') for line in lines]
-    
+
     def download_manager(self):
         while True:
             time.sleep(1)
@@ -57,7 +57,7 @@ class MusicManager():
                 if self.queue[0] not in self._downloaded_songs:
                     logger.info(f"Download Next in Queue: {self.queue[0]}")
                     self.download_song(self.queue[0])
-    
+
     def pause(self):
         """Attempts to pause currently playing song, and sends notification on error.
         """
@@ -66,7 +66,7 @@ class MusicManager():
             self.paused = True
         except:
             os.system('notify-send \'Error while pausing\'')
-            
+
     def unpause(self):
         """Attempts to unpause the currently playing song, and sends notification on error.
         """
@@ -90,14 +90,14 @@ class MusicManager():
         self.currently_playing = track_id
         if clear_queue:
             self.reset_queue()
-            
+
         self.call_on_song_change()
-               
+
     def reset_queue(self):
         """Sets the queue to an empty list.
         """
         self.queue = []
-        
+
     def add_song_to_queue(self, track_id: str, call_on_queue_change: bool = True):
         """Adds a track to the queue.
 
@@ -107,7 +107,7 @@ class MusicManager():
         self.queue.append(track_id)
         if call_on_queue_change:
             self.call_on_queue_change()
-    
+
     def add_songs_to_queue(self, track_ids: list[str]):
         """Adds a list of tracks to the queue.
 
@@ -116,7 +116,7 @@ class MusicManager():
         """
         for track in track_ids:
             self.add_song_to_queue(track, False)
-            
+
         self.call_on_queue_change()
 
     def download_song(self, track_id: str, force: bool = False):
@@ -142,7 +142,7 @@ class MusicManager():
         self.player.load_song(f"cache/downloads/{track_id}.mp3")
         self.currently_playing = track_id
         self.paused = True
-        
+
         self.call_on_song_change()
 
     def on_song_end(self):
@@ -153,8 +153,8 @@ class MusicManager():
         if len(self.queue) > 0:
             self.currently_playing = self.queue[0]
             self.force_play_song(self.queue[0])
-            self.queue.pop(0)    
-            
+            self.queue.pop(0)
+
             self.call_on_song_change()
 
     def play_queue(self):
@@ -163,10 +163,10 @@ class MusicManager():
         logger.info(f"Playing {self.queue[0]}")
         self.force_play_song(self.queue[0])
         self.queue.pop(0)
-        
+
         self.call_on_song_change()
         self.call_on_queue_change()
-        
+
     def skip_forward(self):
         if len(self.queue) < 1:
             return False

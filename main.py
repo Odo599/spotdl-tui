@@ -39,21 +39,21 @@ class PlaylistView(Static):
             self.title = Label(name, id='playlist-title')
             self.shuffle = Button("Shuffle", id='playlist-shuffle')
             self.play_all = Button("Play", id='playlist-play')
-            
-            
+
+
             self.table.add_columns(*table[0])
             self.table.add_rows(tracks)
-            
+
             play_group = HorizontalGroup(self.shuffle, self.play_all, id='playlist-play-group')
-            
+
             topbar = HorizontalGroup(self.title, play_group, id="playlist-topbar")
-            
+
             v_group = VerticalGroup(topbar, self.table)
             
             yield v_group
         else:
             yield Label("No Playlist")
-    
+
     # Run when playlist selected
     @on(DataTable.CellSelected)
     async def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
@@ -66,7 +66,7 @@ class PlaylistView(Static):
                 _task_thread = threading.Thread(target=_task)
                 _task_thread.daemon = True
                 _task_thread.start()
-    
+
     @on(Button.Pressed)
     def handle_playlist_selected(self, event: Button.Pressed) -> None:
         if event.control.id == 'playlist-play':
@@ -101,7 +101,7 @@ class PlaylistsView(Static):
         
         yield Collapsible(self.table, collapsed=False, title="Playlists")
         yield self.playlist
-    
+
     # Run when a cell is selected
     @on(DataTable.CellSelected)
     def handle_cell_selected(self, event: DataTable.CellSelected) -> None:
@@ -190,7 +190,7 @@ class ViewSwitcher(Static):
         with Horizontal(id='switcher-buttons'):
             yield Button("Home", id='switcher-home', classes='switcher-button')
             yield Button("Queue", id='switcher-queue', classes='switcher-button')
-            
+
         with ContentSwitcher(initial="switcher-home"):
             yield PlaylistsView(id='switcher-home')
             yield Queue(id='switcher-queue')
