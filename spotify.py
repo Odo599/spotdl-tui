@@ -3,7 +3,6 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 import re
-import pprint
 
 
 class SpotifyClient:
@@ -137,9 +136,3 @@ class SpotifyClient:
         """Extract playlist ID from a full Spotify playlist URL."""
         match = re.search(r'playlist/([a-zA-Z0-9]+)', url)
         return match.group(1) if match else None
-
-
-if __name__ == "__main__":
-    s = SpotifyClient()
-    s.authenticate()
-    pprint.pp(s.download_song_metadata('5adqS3stLaSPAEOszOnpXG'))
