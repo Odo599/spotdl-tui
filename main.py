@@ -1,7 +1,7 @@
 from textual.app import App, ComposeResult
-from textual.widgets import DataTable, Label, Button, Static, Collapsible
+from textual.widgets import DataTable, Label, Button, Static, Collapsible, ContentSwitcher
+from textual.containers import HorizontalGroup, VerticalGroup, Horizontal
 from textual import on
-from textual.containers import HorizontalGroup, VerticalGroup
 from textual.coordinate import Coordinate
 from textual.logging import TextualHandler
 
@@ -11,22 +11,7 @@ import random
 
 from spotify import SpotifyClient
 from music_manager import MusicManager
-
-
-music_manager = MusicManager()
-
-spotify = SpotifyClient()
-spotify.authenticate()
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-handler = TextualHandler()
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(levelname)s [%(filename)s:%(lineno)d]: %(message)s")
-handler.setFormatter(formatter)
-
-logger.addHandler(handler)
+from song_metadata import SongMetadataFile
 
 class PlaylistView(Static):
     def __init__(self, playlist_id:str|None = None, *args, **kwargs):
@@ -134,11 +119,19 @@ class BottomBar(Static):
     def compose(self) -> ComposeResult:  
         # TODO Currently Playing
         # TODO View song progress
-        yield Label("Currently Playing", id='current')
+        
+        self.current_play_label =  Label("Currently Playing", id='current')
+        yield self.current_play_label
         yield HorizontalGroup(
             Button("Play/Pause", id='play'),
             Button("Next Song", id='next')
         )
+        
+        music_manager.set_on_song_change(self.update_currently_playing)
+    
+    def update_currently_playing(self):
+        if music_manager.currently_playing != None:
+            self.current_play_label.update(music_manager.currently_playing)
     
     # Run when button pressed
     def on_button_pressed(self, event: Button.Pressed):
@@ -150,19 +143,86 @@ class BottomBar(Static):
                 else:
                     music_manager.pause()
                     
+                # self.current_play_label.update(music_manager.currently_playing)
+                    
         elif event.button.id == 'next':
-            music_manager.skip_forward()
+            music_manager.skip_forward()    
+     
+class Queue(Static):
+    def compose(self) -> ComposeResult:
+        yield Label("Queue")
+        self.table = DataTable()
+        self.table.add_columns(*("Song",))
+        yield self.table
+        yield Label(f"{music_manager.queue}")
         
+        music_manager.set_on_song_change(self.on_queue_change)
+        
+    def on_queue_change(self):
+        logger.info("Queue Changed")
+        self.table.clear()
+        self.table.add_rows(self.parse_queue(music_manager.queue))
+        
+        
+    def parse_queue(self, queue: list[str]):
+        metadata = song_metadata.read()
+        for song_id in queue:
+            if metadata.get(song_id) == None:
+                new_metadata = spotify.download_song_metadata(song_id)
+                if new_metadata != None:
+                    song_metadata.add_metadata((new_metadata['id'], new_metadata))
+                    
+        read_again = song_metadata.read()
+        new_data = []
+        for i in range(len(queue)):
+            new_data.append([read_again[queue[i]]['name']])
+        
+        return new_data
+                    
+        
+            
+class ViewSwitcher(Static):
+    def compose(self) -> ComposeResult:
+        with Horizontal(id='switcher-buttons'):
+            yield Button("Home", id='switcher-home', classes='switcher-button')
+            yield Button("Queue", id='switcher-queue', classes='switcher-button')
+            
+        with ContentSwitcher(initial="switcher-home"):
+            yield PlaylistsView(id='switcher-home')
+            yield Queue(id='switcher-queue')
+            
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id in ['switcher-home', 'switcher-queue']:
+            self.query_one(ContentSwitcher).current = event.button.id
+    
 class Main(App):
     CSS_PATH = 'main.tcss'
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        yield PlaylistsView()
+        # yield PlaylistsView()        yield PlaylistsView()
+        yield ViewSwitcher()
         yield BottomBar()
         # TODO Some way to view the queue
         
 if __name__ == "__main__":
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    handler = TextualHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(levelname)s [%(filename)s:%(lineno)d]: %(message)s")
+    handler.setFormatter(formatter)
+
+    logger.addHandler(handler)
+    
+    music_manager = MusicManager()
+    
+    song_metadata = SongMetadataFile()
+
+    spotify = SpotifyClient()
+    spotify.authenticate()
+
+    
+    
     Main().run()
     music_manager.quit()
-    # os.system('clear')
-    quit()
