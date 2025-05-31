@@ -30,14 +30,14 @@ class MusicManager():
         self.on_song_change = on_song_change
     
     def call_on_song_change(self):
-        if self.on_song_change != None:
+        if self.on_song_change is not None:
             self.on_song_change()
     
     def set_on_queue_change(self, on_queue_change):
         self.on_queue_change = on_queue_change
         
     def call_on_queue_change(self):
-        if self.on_queue_change != None:
+        if self.on_queue_change is not None:
             self.on_queue_change()
     
     def _parse_downloaded_file_index(self):
