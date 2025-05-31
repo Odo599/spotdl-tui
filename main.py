@@ -156,7 +156,7 @@ class Queue(Static):
         yield self.table
         yield Label(f"{music_manager.queue}")
         
-        music_manager.set_on_song_change(self.on_queue_change)
+        music_manager.set_on_queue_change(self.on_queue_change)
         
     def on_queue_change(self):
         logger.info("Queue Changed")
