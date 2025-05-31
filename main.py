@@ -5,6 +5,8 @@ from textual import on
 from textual.coordinate import Coordinate
 from textual.logging import TextualHandler
 
+from rich.text import Text
+
 import threading
 import logging
 import random
@@ -132,9 +134,11 @@ class BottomBar(Static):
     def update_currently_playing(self):
         if music_manager.currently_playing != None:
             metadata = song_metadata.get_metadata(music_manager.currently_playing)
-            print(metadata)
             if metadata is not None:
-                self.current_play_label.update(metadata['name'])
+                label_text = Text()
+                label_text.append(f"{metadata['name']} - ")
+                label_text.append(metadata['artist-name'], 'gray0')
+                self.current_play_label.update(label_text)
                 
     
     # Run when button pressed
@@ -146,9 +150,7 @@ class BottomBar(Static):
                     music_manager.unpause()
                 else:
                     music_manager.pause()
-                    
-                # self.current_play_label.update(music_manager.currently_playing)
-                    
+                                        
         elif event.button.id == 'next':
             music_manager.skip_forward()    
      
