@@ -131,7 +131,11 @@ class BottomBar(Static):
     
     def update_currently_playing(self):
         if music_manager.currently_playing != None:
-            self.current_play_label.update(music_manager.currently_playing)
+            metadata = song_metadata.get_metadata(music_manager.currently_playing)
+            print(metadata)
+            if metadata is not None:
+                self.current_play_label.update(metadata['name'])
+                
     
     # Run when button pressed
     def on_button_pressed(self, event: Button.Pressed):
