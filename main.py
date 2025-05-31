@@ -16,7 +16,7 @@ from class_manager import ClassManager
 class PlaylistView(Static):
     """A Static that takes a playlist_id and displays a DataTable with a few buttons"""
 
-    def __init__(self, classman: ClassManager, playlist_id:str|None = None):
+    def __init__(self, classman: ClassManager, playlist_id: str | None = None, *args, **kwargs):
         self.classman = classman
         self.playlist_id = playlist_id
 
