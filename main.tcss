@@ -38,11 +38,9 @@ PlaylistView {
 
 .switcher-button {
     height: 1;
-    padding: 0 1;        /* Optional: horizontal padding only */
+    padding: 0 1;
     margin-right: 2;
-    border: none;        /* Optional: remove border to keep size minimal */
-    # background: $primary;
-    # color: $text;
+    border: none;
 }
 
 PlaylistsView {
