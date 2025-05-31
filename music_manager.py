@@ -20,6 +20,7 @@ class MusicManager():
         self.currently_playing: str | None = None
         
         self.on_song_change = None
+        self.on_queue_change = None
         
         self._download_manager_thread = threading.Thread(target=self.download_manager)
         self._download_manager_thread.daemon = True
@@ -31,6 +32,13 @@ class MusicManager():
     def call_on_song_change(self):
         if self.on_song_change != None:
             self.on_song_change()
+    
+    def set_on_queue_change(self, on_queue_change):
+        self.on_queue_change = on_queue_change
+        
+    def call_on_queue_change(self):
+        if self.on_queue_change != None:
+            self.on_queue_change()
     
     def _parse_downloaded_file_index(self):
         """Reads cache/downloaded.txt, and returns each line stripped of newline.
@@ -97,6 +105,7 @@ class MusicManager():
             track_id (str): Spotify track ID to add to queue.
         """
         self.queue.append(track_id)
+        self.call_on_queue_change()
     
     def add_songs_to_queue(self, track_ids: list[str]):
         """Adds a list of tracks to the queue.
@@ -106,6 +115,8 @@ class MusicManager():
         """
         for track in track_ids:
             self.add_song_to_queue(track)
+            
+        self.call_on_queue_change()
 
     def download_song(self, track_id: str, force: bool = False):
         """Calls SpotDL to download a song if not already downloaded
@@ -153,6 +164,7 @@ class MusicManager():
         self.queue.pop(0)
         
         self.call_on_song_change()
+        self.call_on_queue_change()
         
     def skip_forward(self):
         if len(self.queue) < 1:
@@ -163,6 +175,7 @@ class MusicManager():
             self.force_play_song(self.queue[0])
             self.queue.pop(0)
             self.call_on_song_change()
+            self.call_on_queue_change()
 
     def quit(self):
         """Stops playback and quits pygame.

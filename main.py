@@ -11,6 +11,7 @@ import random
 
 from spotify import SpotifyClient
 from music_manager import MusicManager
+from song_metadata import SongMetadataFile
 
 class PlaylistView(Static):
     def __init__(self, playlist_id:str|None = None, *args, **kwargs):
@@ -151,7 +152,34 @@ class Queue(Static):
     def compose(self) -> ComposeResult:
         yield Label("Queue")
         self.table = DataTable()
+        self.table.add_columns(*("Song",))
+        yield self.table
         yield Label(f"{music_manager.queue}")
+        
+        music_manager.set_on_song_change(self.on_queue_change)
+        
+    def on_queue_change(self):
+        logger.info("Queue Changed")
+        self.table.clear()
+        self.table.add_rows(self.parse_queue(music_manager.queue))
+        
+        
+    def parse_queue(self, queue: list[str]):
+        metadata = song_metadata.read()
+        for song_id in queue:
+            if metadata.get(song_id) == None:
+                new_metadata = spotify.download_song_metadata(song_id)
+                if new_metadata != None:
+                    song_metadata.add_metadata((new_metadata['id'], new_metadata))
+                    
+        read_again = song_metadata.read()
+        new_data = []
+        for i in range(len(queue)):
+            new_data.append([read_again[queue[i]]['name']])
+        
+        return new_data
+                    
+        
             
 class ViewSwitcher(Static):
     def compose(self) -> ComposeResult:
@@ -188,6 +216,8 @@ if __name__ == "__main__":
     logger.addHandler(handler)
     
     music_manager = MusicManager()
+    
+    song_metadata = SongMetadataFile()
 
     spotify = SpotifyClient()
     spotify.authenticate()
