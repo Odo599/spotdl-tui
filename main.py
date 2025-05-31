@@ -5,6 +5,8 @@ from textual import on
 from textual.coordinate import Coordinate
 from textual.logging import TextualHandler
 
+from rich.text import Text
+
 import threading
 import logging
 import random
@@ -131,7 +133,13 @@ class BottomBar(Static):
     
     def update_currently_playing(self):
         if music_manager.currently_playing != None:
-            self.current_play_label.update(music_manager.currently_playing)
+            metadata = song_metadata.get_metadata(music_manager.currently_playing)
+            if metadata is not None:
+                label_text = Text()
+                label_text.append(f"{metadata['name']} - ")
+                label_text.append(metadata['artist-name'], 'gray0')
+                self.current_play_label.update(label_text)
+                
     
     # Run when button pressed
     def on_button_pressed(self, event: Button.Pressed):
@@ -142,9 +150,7 @@ class BottomBar(Static):
                     music_manager.unpause()
                 else:
                     music_manager.pause()
-                    
-                # self.current_play_label.update(music_manager.currently_playing)
-                    
+                                        
         elif event.button.id == 'next':
             music_manager.skip_forward()    
      
@@ -156,7 +162,7 @@ class Queue(Static):
         yield self.table
         yield Label(f"{music_manager.queue}")
         
-        music_manager.set_on_song_change(self.on_queue_change)
+        music_manager.set_on_queue_change(self.on_queue_change)
         
     def on_queue_change(self):
         logger.info("Queue Changed")
@@ -178,8 +184,6 @@ class Queue(Static):
             new_data.append([read_again[queue[i]]['name']])
         
         return new_data
-                    
-        
             
 class ViewSwitcher(Static):
     def compose(self) -> ComposeResult:

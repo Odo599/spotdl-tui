@@ -98,14 +98,15 @@ class MusicManager():
         """
         self.queue = []
         
-    def add_song_to_queue(self, track_id: str):
+    def add_song_to_queue(self, track_id: str, call_on_queue_change: bool = True):
         """Adds a track to the queue.
 
         Args:
             track_id (str): Spotify track ID to add to queue.
         """
         self.queue.append(track_id)
-        self.call_on_queue_change()
+        if call_on_queue_change:
+            self.call_on_queue_change()
     
     def add_songs_to_queue(self, track_ids: list[str]):
         """Adds a list of tracks to the queue.
@@ -114,7 +115,7 @@ class MusicManager():
             track_ids (list[str]): List of track ids to add to the queue.
         """
         for track in track_ids:
-            self.add_song_to_queue(track)
+            self.add_song_to_queue(track, False)
             
         self.call_on_queue_change()
 
