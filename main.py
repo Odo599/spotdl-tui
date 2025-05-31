@@ -178,8 +178,6 @@ class Queue(Static):
             new_data.append([read_again[queue[i]]['name']])
         
         return new_data
-                    
-        
             
 class ViewSwitcher(Static):
     def compose(self) -> ComposeResult:
