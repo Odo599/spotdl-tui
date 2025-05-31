@@ -1,39 +1,49 @@
+"""Main entry point for spotdl-tui"""
+
+import threading
+import random
+
 from textual.app import App, ComposeResult
 from textual.widgets import DataTable, Label, Button, Static, Collapsible, ContentSwitcher
 from textual.containers import HorizontalGroup, VerticalGroup, Horizontal
 from textual import on
 from textual.coordinate import Coordinate
-from textual.logging import TextualHandler
 
 from rich.text import Text
 
-import threading
-import logging
-import random
-
-from spotify import SpotifyClient
-from music_manager import MusicManager
-from song_metadata import SongMetadataFile
+from class_manager import ClassManager
 
 class PlaylistView(Static):
-    def __init__(self, playlist_id:str|None = None, *args, **kwargs):
+    """A Static that takes a playlist_id and displays a DataTable with a few buttons"""
+
+    def __init__(self, classman: ClassManager, playlist_id:str|None = None):
+        self.classman = classman
         self.playlist_id = playlist_id
-        super().__init__(*args, **kwargs)
-        
+
+        self.playlist_tracks = []
+        self.playlist_name = ""
+
+        self.table = DataTable()
+        self.title = Label()
+        self.shuffle = Button()
+        self.play_all = Button()
+
+        super().__init__()
+
     def compose(self):
         if self.playlist_id is not None:
             # Setup Data
             table = [
                 ("x", "Track Name", "Artist", "id"),
             ]
-            tracks = spotify.get_playlist_tracks(f'https://open.spotify.com/playlist/{self.playlist_id}')
+            tracks = self.classman.spotify_client.get_playlist_tracks(f'https://open.spotify.com/playlist/{self.playlist_id}')
             self.playlist_tracks = tracks
             tracks = [['▶'] + sublist for sublist in tracks]
-            
-            name = spotify.get_playlist_metadata(f'https://open.spotify.com/playlist/{self.playlist_id}')['name']
-            
+
+            name = self.classman.spotify_client.get_playlist_metadata(f'https://open.spotify.com/playlist/{self.playlist_id}')['name']
+
             self.playlist_name = name
-            
+
             # Setup Elements
             self.table = DataTable(id='playlist')
             self.title = Label(name, id='playlist-title')
@@ -49,7 +59,7 @@ class PlaylistView(Static):
             topbar = HorizontalGroup(self.title, play_group, id="playlist-topbar")
 
             v_group = VerticalGroup(topbar, self.table)
-            
+
             yield v_group
         else:
             yield Label("No Playlist")
@@ -57,176 +67,176 @@ class PlaylistView(Static):
     # Run when playlist selected
     @on(DataTable.CellSelected)
     async def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
+        """Runs when a square in the playlist's DataTable is selected."""
         if event.control.id == 'playlist':
             row, column = event.coordinate
-            if column == 0:            
+            if column == 0:
                 def _task():
-                    music_manager.force_play_song(self.table.get_cell_at(Coordinate(row, column + 3)), True)
-                    
+                    self.classman.music_manager.force_play_song(self.table.get_cell_at(Coordinate(row, column + 3)), True)
+
                 _task_thread = threading.Thread(target=_task)
                 _task_thread.daemon = True
                 _task_thread.start()
 
     @on(Button.Pressed)
-    def handle_playlist_selected(self, event: Button.Pressed) -> None:
+    def handle_button_selected(self, event: Button.Pressed) -> None:
+        """Runs when the play or shuffle button is pressed"""
         if event.control.id == 'playlist-play':
-            logger.info(f"Play playlist: {self.playlist_id} ({self.playlist_name})")
             track_ids = [track[-1] for track in self.playlist_tracks]
-            music_manager.reset_queue()
-            music_manager.add_songs_to_queue(track_ids)
-            music_manager.play_queue()
+            self.classman.music_manager.reset_queue()
+            self.classman.music_manager.add_songs_to_queue(track_ids)
+            self.classman.music_manager.play_queue()
         elif event.control.id == 'playlist-shuffle':
-            logger.info(f"Shuffle playlist: {self.playlist_id} ({self.playlist_name})")
             track_ids = [track[-1] for track in self.playlist_tracks]
             random.shuffle(track_ids)
-            logger.info(track_ids)
-            
-            music_manager.reset_queue()
-            music_manager.add_songs_to_queue(track_ids)
-            music_manager.play_queue()
-            logger.info(music_manager.queue)
-                  
-class PlaylistsView(Static):   
-    def __init__(self, *args, **kwargs):
+            self.classman.music_manager.reset_queue()
+            self.classman.music_manager.add_songs_to_queue(track_ids)
+            self.classman.music_manager.play_queue()
+
+class PlaylistsView(Static):
+    """Shows all of the users playlist's in a DataTable,
+    on selection opens PlaylistView for the selected Playlist"""
+    def __init__(self, classman: ClassManager, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.playlist = PlaylistView()
+        self.classman = classman
+        self.playlist = PlaylistView(classman)
+        self.table = DataTable()
 
     def compose(self) -> ComposeResult:
-        data = spotify.get_user_playlists()
+        data = self.classman.spotify_client.get_user_playlists()
         data = [['x'] + sublist for sublist in data]
-        
         self.table = DataTable(id='playlists')
         self.table.add_columns(*("x", "Name", "ID"))
         self.table.add_rows(data)
-        
         yield Collapsible(self.table, collapsed=False, title="Playlists")
         yield self.playlist
 
     # Run when a cell is selected
     @on(DataTable.CellSelected)
     def handle_cell_selected(self, event: DataTable.CellSelected) -> None:
+        """Run when a playlist is selected.
+        Opens the playlist in PlaylistView"""
         if event.control.id == 'playlists':
             def _task():
                 playlist_id = event.control.get_cell_at(Coordinate(event.coordinate[0], 2))
-                logger.info(f"Selected: {event.control.get_cell_at(Coordinate(event.coordinate[0],1))} ({event.control.get_cell_at(Coordinate(event.coordinate[0],2))})")
-                # UI update in main thread
                 def update_ui():
                     self.playlist.remove()
-                    self.playlist = PlaylistView(playlist_id)
+                    self.playlist = PlaylistView(self.classman, playlist_id)
                     self.mount(self.playlist)
                 self.app.call_from_thread(update_ui)
             threading.Thread(target=_task, daemon=True).start()
-    
+
 class BottomBar(Static):
-    def compose(self) -> ComposeResult:  
-        # TODO Currently Playing
-        # TODO View song progress
-        
+    """Bar at the bottom of the screen that displays currently playing song."""
+    def __init__(self, classman: ClassManager, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.classman = classman
+
+        self.current_play_label = Label()
+
+    def compose(self) -> ComposeResult:
         self.current_play_label =  Label("Currently Playing", id='current')
         yield self.current_play_label
         yield HorizontalGroup(
             Button("Play/Pause", id='play'),
             Button("Next Song", id='next')
         )
-        
-        music_manager.set_on_song_change(self.update_currently_playing)
-    
+
+        self.classman.music_manager.set_on_song_change(self.update_currently_playing)
+
     def update_currently_playing(self):
-        if music_manager.currently_playing != None:
-            metadata = song_metadata.get_metadata(music_manager.currently_playing)
+        print('DEBUG type(song_metadata_file):', type(self.classman.song_metadata_file))
+        if self.classman.music_manager.currently_playing is not None:
+            metadata = self.classman.song_metadata_file.get_metadata(self.classman.music_manager.currently_playing)
             if metadata is not None:
                 label_text = Text()
                 label_text.append(f"{metadata['name']} - ")
                 label_text.append(metadata['artist-name'], 'gray0')
                 self.current_play_label.update(label_text)
-                
-    
-    # Run when button pressed
+
     def on_button_pressed(self, event: Button.Pressed):
+        """Run when play or next is clicked."""
         if event.button.id == 'play':
-            logger.info(f"Currently Playing: {music_manager.currently_playing}")
-            if music_manager.currently_playing is not None:
-                if music_manager.paused:
-                    music_manager.unpause()
+            if self.classman.music_manager.currently_playing is not None:
+                if self.classman.music_manager.paused:
+                    self.classman.music_manager.unpause()
                 else:
-                    music_manager.pause()
-                                        
+                    self.classman.music_manager.pause()
+
         elif event.button.id == 'next':
-            music_manager.skip_forward()    
-     
+            self.classman.music_manager.skip_forward()
+
 class Queue(Static):
+    """View to show the current queue."""
+    def __init__(self, classman: ClassManager, **kwargs):
+        super().__init__(**kwargs)
+        self.classman = classman
+        self.table = DataTable()
+
     def compose(self) -> ComposeResult:
         yield Label("Queue")
         self.table = DataTable()
         self.table.add_columns(*("Song",))
         yield self.table
-        yield Label(f"{music_manager.queue}")
-        
-        music_manager.set_on_queue_change(self.on_queue_change)
-        
+        yield Label(f"{self.classman.music_manager.queue}")
+
+        self.classman.music_manager.set_on_queue_change(self.on_queue_change)
+
     def on_queue_change(self):
-        logger.info("Queue Changed")
+        """To be run when the queue needs to be updated."""
         self.table.clear()
-        self.table.add_rows(self.parse_queue(music_manager.queue))
-        
-        
-    def parse_queue(self, queue: list[str]):
-        metadata = song_metadata.read()
+        self.table.add_rows(self.parse_queue(self.classman.music_manager.queue))
+
+
+    def parse_queue(self, queue: list[str]) -> list[str]:
+        print('DEBUG type(song_metadata_file):', type(self.classman.song_metadata_file))
+        metadata = self.classman.song_metadata_file.read()
         for song_id in queue:
-            if metadata.get(song_id) == None:
-                new_metadata = spotify.download_song_metadata(song_id)
-                if new_metadata != None:
-                    song_metadata.add_metadata((new_metadata['id'], new_metadata))
-                    
-        read_again = song_metadata.read()
+            if metadata.get(song_id) is None:
+                new_metadata = self.classman.spotify_client.download_song_metadata(song_id)
+                if new_metadata is not None:
+                    self.classman.song_metadata_file.add_metadata((new_metadata['id'], new_metadata))
+        read_again = self.classman.song_metadata_file.read()
         new_data = []
-        for i in range(len(queue)):
-            new_data.append([read_again[queue[i]]['name']])
-        
+        for song_id in queue:
+            new_data.append([read_again[song_id]['name']])
         return new_data
-            
+
 class ViewSwitcher(Static):
+    """A Static that uses ViewSwitcher and Button to switch views between PlaylistsView and Queue."""
+    def __init__(self, classman: ClassManager, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.classman = classman
+
     def compose(self) -> ComposeResult:
         with Horizontal(id='switcher-buttons'):
             yield Button("Home", id='switcher-home', classes='switcher-button')
             yield Button("Queue", id='switcher-queue', classes='switcher-button')
 
         with ContentSwitcher(initial="switcher-home"):
-            yield PlaylistsView(id='switcher-home')
-            yield Queue(id='switcher-queue')
-            
+            yield PlaylistsView(self.classman, id='switcher-home')
+            yield Queue(self.classman, id='switcher-queue')
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Run when switcher button pressed, and change view."""
         if event.button.id in ['switcher-home', 'switcher-queue']:
             self.query_one(ContentSwitcher).current = event.button.id
-    
+
 class Main(App):
+    """Main class for spotdl-tui."""
     CSS_PATH = 'main.tcss'
+    def __init__(self, classman: ClassManager, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.classman = classman
+
     def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
-        # yield PlaylistsView()        yield PlaylistsView()
-        yield ViewSwitcher()
-        yield BottomBar()
-        # TODO Some way to view the queue
-        
+        yield ViewSwitcher(self.classman)
+        yield BottomBar(classman=self.classman)
+
 if __name__ == "__main__":
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    class_manager = ClassManager()
 
-    handler = TextualHandler()
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(levelname)s [%(filename)s:%(lineno)d]: %(message)s")
-    handler.setFormatter(formatter)
+    main = Main(classman=class_manager)
 
-    logger.addHandler(handler)
-    
-    music_manager = MusicManager()
-    
-    song_metadata = SongMetadataFile()
-
-    spotify = SpotifyClient()
-    spotify.authenticate()
-
-    
-    
-    Main().run()
-    music_manager.quit()
+    Main(classman=class_manager).run()
+    class_manager.music_manager.quit()
