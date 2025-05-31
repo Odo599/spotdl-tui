@@ -3,7 +3,6 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 import re
-import pprint
 
 
 class SpotifyClient:
@@ -106,18 +105,18 @@ class SpotifyClient:
         playlist_id = self._extract_playlist_id(playlist_url)
         if not playlist_id:
             raise ValueError("Invalid Spotify URL.")
-        
+
         results = self.sp.playlist(playlist_id)
-        
+
         if type(results) == dict:
             return {'name':results['name']}
         else:
             raise ValueError("Could not get metadata.")
-    
+
     def download_song_metadata(self, song_id:str) -> dict[str, str] | None:
         if not self.sp:
             raise Exception("Spotify client not authenticated. Call authenticate() first.")
-        
+
         response = self.sp.track(song_id)
         if response != None:
             to_return = {
@@ -130,17 +129,10 @@ class SpotifyClient:
             }
         else:
             to_return = None
-            
+
         return to_return
-    
+
     def _extract_playlist_id(self, url):
         """Extract playlist ID from a full Spotify playlist URL."""
         match = re.search(r'playlist/([a-zA-Z0-9]+)', url)
         return match.group(1) if match else None
-
-
-if __name__ == "__main__":
-    s = SpotifyClient()
-    s.authenticate()
-    pprint.pp(s.download_song_metadata('5adqS3stLaSPAEOszOnpXG'))
-    

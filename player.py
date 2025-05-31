@@ -12,15 +12,15 @@ class MusicPlayer():
             queue (list[str], optional): List of paths to music to add to queue. Defaults to [].
         """
         pygame.mixer.init()
-        
+
         self.queue = queue
-        
+
         self._paused = False
         self._watch_song_end_thread = threading.Thread(target=self._watch_song_end)
         self._watch_song_end_started = False
         self.on_song_end_hook = on_song_end_hook
         self._quitting = False
-        
+
     def _watch_song_end(self):
         was_playing = False
         while not self._quitting:
@@ -29,7 +29,7 @@ class MusicPlayer():
                 self.on_song_finish()
             was_playing = is_playing
             time.sleep(0.5)
-        
+
     def load_song(self, path: str = ""):
         """Loads a song for pygame, will load 0th song in queue if path not provided.
 
@@ -43,7 +43,7 @@ class MusicPlayer():
             pygame.mixer.music.load(path)
         else:
             pygame.mixer.music.load(self.queue[0])
-            
+
         pygame.mixer.music.play()
 
     def play(self):
@@ -65,5 +65,4 @@ class MusicPlayer():
     def quit(self):
         self._quitting = True
         pygame.mixer.quit()
-        
-    
+

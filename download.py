@@ -10,8 +10,8 @@ def download_song(query: str) -> str | None | tuple[str, str]:
 
     Returns:
         str | None | tuple[str, str]: Spotify track ID or None if no song found.
-    """    
-        
+    """
+
     cmd = [
         "spotdl",
         query,
@@ -36,7 +36,7 @@ def download_song(query: str) -> str | None | tuple[str, str]:
         match = re.search(r'Skipping\s+(.+?)\s+\(skip file found\)', output)
         if match:
             return match.group(1)
-              
+
 
         return None
     except Exception as e:
