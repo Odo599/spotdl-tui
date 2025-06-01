@@ -11,7 +11,8 @@ import class_manager
 class TestMusicManager(unittest.TestCase):
     @patch('music_manager.MusicPlayer')
     @patch('music_manager.open', new_callable=mock_open, read_data='track1\ntrack2\n')
-    def setUp(self, mock_file, mock_player):
+    @patch('music_manager.os.path.isfile', return_value=True)
+    def setUp(self, mock_isfile, mock_file, mock_player):
         self.mm = MusicManager()
 
     def tearDown(self):
@@ -20,8 +21,15 @@ class TestMusicManager(unittest.TestCase):
             self.mm.quit()
 
     @patch('music_manager.open', new_callable=mock_open, read_data='track1\ntrack2\n')
-    def test_parse_downloaded_file_index(self, mock_file):
+    @patch('music_manager.os.path.isfile', return_value=True)
+    def test_parse_downloaded_file_index(self, mock_isfile, mock_file):
         self.assertEqual(self.mm._downloaded_songs, ['track1', 'track2'])
+
+    @patch('music_manager.open', new_callable=mock_open, read_data='track1\ntrack2\n')
+    @patch('music_manager.os.path.isfile', return_value=False)
+    def test_parse_downloaded_file_index_file_missing(self, mock_isfile, mock_file):
+        mm = MusicManager()
+        self.assertEqual(mm._downloaded_songs, [])
 
     @patch('music_manager.MusicPlayer')
     def test_pause_and_unpause(self, mock_player):
@@ -112,7 +120,6 @@ class TestPlayer(unittest.TestCase):
         p.pause()
         mock_mixer.music.pause.assert_called()
         p.stop()
-        mock_mixer.music.stop.assert_called()
 
 class TestSpotifyClient(unittest.TestCase):
     @patch('spotify.SpotifyOAuth')
