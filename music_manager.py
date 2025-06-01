@@ -51,9 +51,12 @@ class MusicManager():
         Returns:
             list[str]: List of each line in cache/downloaded.txt
         """
-        with open('cache/downloaded.txt', encoding='utf-8') as f:
-            lines = f.readlines()
-            return [line.rstrip('\n') for line in lines]
+        if os.path.isfile('cache/downloaded.txt'):
+            with open('cache/downloaded.txt', encoding='utf-8') as f:
+                lines = f.readlines()
+                return [line.rstrip('\n') for line in lines]
+        else:
+            return []
 
     def download_manager(self):
         while True:
