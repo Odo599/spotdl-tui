@@ -11,7 +11,7 @@ class MusicPlayer():
         Args:
             queue (list[str], optional): List of paths to music to add to queue. Defaults to [].
         """
-        pygame.mixer.init()
+        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
 
         self.queue = queue
 

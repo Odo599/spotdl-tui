@@ -133,7 +133,7 @@ class MusicManager():
         """
         if track_id not in self._downloaded_songs or force:
             self.logger.info("Downloading: %s", track_id)
-            download_song(f"https://open.spotify.com/track/{track_id}")
+            download_song(track_id)
             with open('cache/downloaded.txt', "a", encoding='utf-8') as f:
                 f.write(f'\n{track_id}')
                 self._downloaded_songs.append(track_id)
