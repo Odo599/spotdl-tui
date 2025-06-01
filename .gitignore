@@ -3,3 +3,5 @@ cache/
 .cache
 __pycache__/
 .venv/
+.vscode/
+.coverage
